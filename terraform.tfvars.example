@@ -1,0 +1,21 @@
+# Terraform variables - JANGAN commit file ini ke Git!
+# Salin file ini menjadi terraform.tfvars dan isi nilainya
+
+# General
+project_name = "gb-app"
+environment  = "prod"
+owner_name   = "NamaAnda"
+aws_region   = "ap-southeast-1"
+
+# Database - WAJIB DIISI
+db_password = "GantiDenganPasswordKuat123!"
+
+# GitHub untuk Amplify
+github_repo_url    = "https://github.com/username/frontend-repo"
+github_access_token = "ghp_XXXXXXXXXXXXXXXXXXXX"
+amplify_branch_name = "main"
+
+# Blue/Green Deployment
+active_color        = "blue"
+blue_version_label  = "v1.0.0-blue"
+green_version_label = "v1.0.1-green"

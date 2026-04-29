@@ -1,0 +1,322 @@
+name: Blue/Green Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main       # Deploy ke GREEN environment
+      - release/**  # Deploy ke BLUE environment (production)
+  workflow_dispatch:
+    inputs:
+      target_color:
+        description: 'Target deployment color (blue/green)'
+        required: true
+        default: 'green'
+        type: choice
+        options:
+          - blue
+          - green
+      swap_traffic:
+        description: 'Switch traffic ke environment yang baru di-deploy?'
+        required: true
+        default: 'false'
+        type: boolean
+
+env:
+  AWS_REGION: ap-southeast-1
+  EB_APPLICATION_NAME: gb-app-prod-app
+  DEPLOYMENT_BUCKET: ${{ secrets.AWS_DEPLOYMENT_BUCKET }}
+  DYNAMODB_DEPLOYMENT_TABLE: gb-app-prod-deployments
+
+jobs:
+  # ==========================================================================
+  # JOB 1: Test dan Build
+  # ==========================================================================
+  test-and-build:
+    name: Test & Build Application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Jalankan unit tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: Build aplikasi
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Buat deployment package
+        run: |
+          # Tentukan deployment color
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            DEPLOY_COLOR="green"
+          elif [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+            DEPLOY_COLOR="blue"
+          else
+            DEPLOY_COLOR="${{ github.event.inputs.target_color || 'green' }}"
+          fi
+
+          VERSION_LABEL="${DEPLOY_COLOR}-$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::8}"
+          echo "DEPLOY_COLOR=${DEPLOY_COLOR}" >> $GITHUB_ENV
+          echo "VERSION_LABEL=${VERSION_LABEL}" >> $GITHUB_ENV
+
+          # Buat ZIP untuk Elastic Beanstalk
+          zip -r deploy-${VERSION_LABEL}.zip . \
+            --exclude "*.git*" \
+            --exclude "node_modules/*" \
+            --exclude "tests/*" \
+            --exclude "coverage/*" \
+            --exclude ".github/*" \
+            --exclude "terraform/*"
+
+          echo "ARTIFACT_NAME=deploy-${VERSION_LABEL}.zip" >> $GITHUB_ENV
+
+      - name: Upload artifact ke GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: ${{ env.ARTIFACT_NAME }}
+          retention-days: 5
+
+  # ==========================================================================
+  # JOB 2: Deploy ke AWS
+  # ==========================================================================
+  deploy:
+    name: Deploy ke ${{ needs.test-and-build.outputs.deploy_color || 'green' }} environment
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    environment:
+      name: ${{ needs.test-and-build.outputs.deploy_color || 'green' }}
+
+    outputs:
+      deploy_color: ${{ env.DEPLOY_COLOR }}
+      version_label: ${{ env.VERSION_LABEL }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package
+
+      - name: Set deployment variables
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "DEPLOY_COLOR=green" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_COLOR=blue" >> $GITHUB_ENV
+          fi
+
+          VERSION_LABEL="${DEPLOY_COLOR}-$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::8}"
+          echo "VERSION_LABEL=${VERSION_LABEL}" >> $GITHUB_ENV
+          ARTIFACT_FILE=$(ls deploy-*.zip 2>/dev/null | head -1)
+          echo "ARTIFACT_FILE=${ARTIFACT_FILE}" >> $GITHUB_ENV
+
+      - name: Upload ke S3
+        run: |
+          aws s3 cp "${{ env.ARTIFACT_FILE }}" \
+            "s3://${DEPLOYMENT_BUCKET}/deployments/${{ env.VERSION_LABEL }}/app.zip" \
+            --metadata "git-sha=${GITHUB_SHA},deploy-color=${{ env.DEPLOY_COLOR }},deployer=${GITHUB_ACTOR}"
+
+          echo "✅ Upload ke S3 berhasil"
+
+      - name: Buat Elastic Beanstalk Application Version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name "${{ env.EB_APPLICATION_NAME }}" \
+            --version-label "${{ env.VERSION_LABEL }}" \
+            --source-bundle S3Bucket="${DEPLOYMENT_BUCKET}",S3Key="deployments/${{ env.VERSION_LABEL }}/app.zip" \
+            --description "Deploy oleh ${{ github.actor }} pada $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          echo "✅ Application version berhasil dibuat: ${{ env.VERSION_LABEL }}"
+
+      - name: Deploy ke Elastic Beanstalk (${{ env.DEPLOY_COLOR }})
+        run: |
+          EB_ENV_NAME="gb-app-prod-${{ env.DEPLOY_COLOR }}"
+
+          echo "🚀 Deploy ke environment: ${EB_ENV_NAME}"
+
+          aws elasticbeanstalk update-environment \
+            --application-name "${{ env.EB_APPLICATION_NAME }}" \
+            --environment-name "${EB_ENV_NAME}" \
+            --version-label "${{ env.VERSION_LABEL }}"
+
+          echo "⏳ Menunggu deployment selesai..."
+
+          # Tunggu hingga environment Ready
+          aws elasticbeanstalk wait environment-updated \
+            --application-name "${{ env.EB_APPLICATION_NAME }}" \
+            --environment-names "${EB_ENV_NAME}"
+
+          echo "✅ Deployment ke ${EB_ENV_NAME} berhasil!"
+
+      - name: Health check setelah deployment
+        run: |
+          EB_ENV_NAME="gb-app-prod-${{ env.DEPLOY_COLOR }}"
+
+          # Ambil URL environment
+          ENV_URL=$(aws elasticbeanstalk describe-environments \
+            --application-name "${{ env.EB_APPLICATION_NAME }}" \
+            --environment-names "${EB_ENV_NAME}" \
+            --query 'Environments[0].CNAME' \
+            --output text)
+
+          echo "🔍 Health check ke: http://${ENV_URL}/health"
+
+          # Retry 5 kali dengan interval 10 detik
+          for i in {1..5}; do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://${ENV_URL}/health" || echo "000")
+            if [[ "$RESPONSE" == "200" ]]; then
+              echo "✅ Health check berhasil (HTTP ${RESPONSE})"
+              break
+            fi
+            echo "⚠️ Health check gagal (HTTP ${RESPONSE}), retry ${i}/5..."
+            sleep 10
+          done
+
+          if [[ "$RESPONSE" != "200" ]]; then
+            echo "❌ Health check gagal setelah 5 kali retry!"
+            exit 1
+          fi
+
+      - name: Catat deployment ke DynamoDB
+        run: |
+          DEPLOYMENT_ID="deploy-${{ github.run_id }}-${{ github.run_number }}"
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          # TTL: 90 hari dari sekarang
+          TTL=$(date -d "+90 days" +%s)
+
+          aws dynamodb put-item \
+            --table-name "${{ env.DYNAMODB_DEPLOYMENT_TABLE }}" \
+            --item "{
+              \"deployment_id\": {\"S\": \"${DEPLOYMENT_ID}\"},
+              \"timestamp\": {\"S\": \"${TIMESTAMP}\"},
+              \"color\": {\"S\": \"${{ env.DEPLOY_COLOR }}\"},
+              \"version_label\": {\"S\": \"${{ env.VERSION_LABEL }}\"},
+              \"git_sha\": {\"S\": \"${GITHUB_SHA}\"},
+              \"git_branch\": {\"S\": \"${{ github.ref_name }}\"},
+              \"deployer\": {\"S\": \"${{ github.actor }}\"},
+              \"status\": {\"S\": \"success\"},
+              \"workflow_run\": {\"S\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"},
+              \"expire_at\": {\"N\": \"${TTL}\"}
+            }"
+
+          echo "✅ Deployment history tercatat di DynamoDB"
+
+  # ==========================================================================
+  # JOB 3: Switch Traffic (opsional, hanya jika swap_traffic = true)
+  # ==========================================================================
+  switch-traffic:
+    name: Switch Traffic ke ${{ needs.deploy.outputs.deploy_color }} Environment
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event.inputs.swap_traffic == 'true'
+    environment:
+      name: production
+      url: ${{ steps.get-alb-url.outputs.alb_url }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Ambil ARN Load Balancer dan Target Groups
+        id: get-resources
+        run: |
+          # Ambil ARN ALB
+          ALB_ARN=$(aws elbv2 describe-load-balancers \
+            --names "gb-app-prod-alb" \
+            --query 'LoadBalancers[0].LoadBalancerArn' \
+            --output text)
+          echo "ALB_ARN=${ALB_ARN}" >> $GITHUB_ENV
+
+          # Ambil Listener ARN
+          LISTENER_ARN=$(aws elbv2 describe-listeners \
+            --load-balancer-arn "${ALB_ARN}" \
+            --query 'Listeners[0].ListenerArn' \
+            --output text)
+          echo "LISTENER_ARN=${LISTENER_ARN}" >> $GITHUB_ENV
+
+          # Ambil Target Group ARN
+          BLUE_TG_ARN=$(aws elbv2 describe-target-groups \
+            --names "gb-app-prod-blue-tg" \
+            --query 'TargetGroups[0].TargetGroupArn' \
+            --output text)
+          GREEN_TG_ARN=$(aws elbv2 describe-target-groups \
+            --names "gb-app-prod-green-tg" \
+            --query 'TargetGroups[0].TargetGroupArn' \
+            --output text)
+
+          echo "BLUE_TG_ARN=${BLUE_TG_ARN}" >> $GITHUB_ENV
+          echo "GREEN_TG_ARN=${GREEN_TG_ARN}" >> $GITHUB_ENV
+
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --load-balancer-arns "${ALB_ARN}" \
+            --query 'LoadBalancers[0].DNSName' \
+            --output text)
+          echo "alb_url=http://${ALB_DNS}" >> $GITHUB_OUTPUT
+
+      - name: Switch traffic 100% ke ${{ needs.deploy.outputs.deploy_color }}
+        run: |
+          DEPLOY_COLOR="${{ needs.deploy.outputs.deploy_color }}"
+
+          if [[ "${DEPLOY_COLOR}" == "blue" ]]; then
+            ACTIVE_WEIGHT=100
+            STANDBY_WEIGHT=0
+            ACTIVE_TG="${{ env.BLUE_TG_ARN }}"
+            STANDBY_TG="${{ env.GREEN_TG_ARN }}"
+          else
+            ACTIVE_WEIGHT=0
+            STANDBY_WEIGHT=100
+            ACTIVE_TG="${{ env.BLUE_TG_ARN }}"
+            STANDBY_TG="${{ env.GREEN_TG_ARN }}"
+          fi
+
+          aws elbv2 modify-listener \
+            --listener-arn "${{ env.LISTENER_ARN }}" \
+            --default-actions "[{
+              \"Type\": \"forward\",
+              \"ForwardConfig\": {
+                \"TargetGroups\": [
+                  {\"TargetGroupArn\": \"${ACTIVE_TG}\", \"Weight\": ${ACTIVE_WEIGHT}},
+                  {\"TargetGroupArn\": \"${STANDBY_TG}\", \"Weight\": ${STANDBY_WEIGHT}}
+                ]
+              }
+            }]"
+
+          echo "✅ Traffic berhasil di-switch ke environment ${DEPLOY_COLOR} (100%)"
+
+      - name: Kirim notifikasi
+        run: |
+          echo "🚀 DEPLOYMENT BERHASIL!"
+          echo "Environment: ${{ needs.deploy.outputs.deploy_color }}"
+          echo "Version: ${{ needs.deploy.outputs.version_label }}"
+          echo "Deployer: ${{ github.actor }}"
+          echo "Waktu: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
