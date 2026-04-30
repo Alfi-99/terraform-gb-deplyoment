@@ -102,6 +102,19 @@ Sistem ini mendukung transisi trafik yang mulus. Anda bisa mengatur persentase t
 **3. Elastic Beanstalk "Busy"**
 -   Tunggu 1-2 menit sebelum menjalankan `terraform apply` lagi. AWS sedang melakukan update environment.
 
+## 🧹 Pembersihan (Cleanup / Destroy)
+
+Untuk menghindari tagihan yang tidak diinginkan, Anda dapat menghapus seluruh infrastruktur dengan satu perintah:
+
+```powershell
+terraform destroy -auto-approve
+```
+
+> [!CAUTION]
+> **Peringatan Data Hilang**: Perintah ini akan menghapus semua data di RDS, DynamoDB, dan seluruh file di S3 secara permanen.
+> 
+> **Catatan S3**: Jika perintah gagal karena bucket S3 tidak kosong, silakan kosongkan isi bucket secara manual melalui AWS Console terlebih dahulu, lalu ulangi perintah `destroy`.
+
 ---
 
 ## 📜 Lisensi & Kontributor
