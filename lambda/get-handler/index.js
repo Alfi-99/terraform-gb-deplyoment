@@ -110,6 +110,8 @@ exports.handler = async (event) => {
 async function handleListItems(queryParams, requestId) {
   // Auto-initialize table if not exists (Safety mechanism)
   try {
+    await query('CREATE DATABASE IF NOT EXISTS gbappdb');
+    await query('USE gbappdb');
     await query(`
       CREATE TABLE IF NOT EXISTS items (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -120,7 +122,10 @@ async function handleListItems(queryParams, requestId) {
       )
     `);
   } catch (e) {
-    console.error("Auto-init failed:", e);
+    await log(SERVICE_ID, 'ERROR', `AUTO-INIT FAILED: ${e.message}`, { 
+      requestId, 
+      stack: e.stack 
+    }, requestId);
   }
 
   const limit = Math.min(parseInt(queryParams.limit || '10'), 100); // Max 100 items

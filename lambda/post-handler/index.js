@@ -112,6 +112,8 @@ exports.handler = async (event) => {
 async function handleCreateItem(body, requestId) {
   // Auto-initialize table if not exists
   try {
+    await query('CREATE DATABASE IF NOT EXISTS gbappdb');
+    await query('USE gbappdb');
     await query(`
       CREATE TABLE IF NOT EXISTS items (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -122,7 +124,10 @@ async function handleCreateItem(body, requestId) {
       )
     `);
   } catch (e) {
-    console.error("Auto-init failed:", e);
+    await log(SERVICE_ID, 'ERROR', `AUTO-INIT FAILED: ${e.message}`, { 
+      requestId, 
+      stack: e.stack 
+    }, requestId);
   }
 
   // Validasi input
