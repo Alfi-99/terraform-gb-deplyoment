@@ -4,124 +4,100 @@
 ![Cloud](https://img.shields.io/badge/AWS-232F3E?logo=amazon-aws&logoColor=white)
 ![IAC](https://img.shields.io/badge/Terraform-7B42BC?logo=terraform&logoColor=white)
 
-Proyek ini adalah implementasi infrastruktur cloud skala enterprise untuk sistem **Koperasi Merah Putih**. Menggunakan arsitektur **Serverless** untuk API dan **Blue/Green Deployment** untuk aplikasi web guna menjamin *Zero Downtime*.
+Dokumentasi lengkap untuk setup, konfigurasi, dan operasional infrastruktur Blue/Green Deployment Koperasi Merah Putih.
 
 ---
 
-## 🏗️ Arsitektur High-Level
+## 🏗️ 1. Persiapan Awal (Prerequisites)
 
-Sistem ini dirancang untuk ketahanan tinggi dan skalabilitas otomatis:
+Sebelum menyentuh Terraform, pastikan tool dasar ini sudah terpasang di komputer Anda:
 
--   **Frontend (Amplify)**: Web dashboard responsif dengan fitur Live Testing Panel.
--   **Backend API (API Gateway)**: REST API yang aman dengan manajemen CORS penuh.
--   **Compute (Lambda)**: Fungsi backend yang berjalan hanya saat dipanggil (cost-efficient).
--   **Database (RDS MySQL)**: Penyimpanan data relasional yang stabil dan terenkripsi.
--   **Logging (DynamoDB)**: Audit trail otomatis untuk setiap request masuk.
--   **Traffic Management (ALB)**: Membagi beban antara environment `BLUE` (stabil) dan `GREEN` (testing/new version).
+### A. Install AWS CLI & Konfigurasi
+1.  **Download & Install**: [AWS CLI Installer](https://aws.amazon.com/cli/).
+2.  **Buka Terminal/PowerShell**, jalankan perintah:
+    ```powershell
+    aws configure
+    ```
+3.  **Masukkan Kredensial**:
+    - `AWS Access Key ID`: (Dapatkan dari IAM User di AWS Console)
+    - `AWS Secret Access Key`: (Dapatkan dari IAM User di AWS Console)
+    - `Default region name`: `ap-southeast-1`
+    - `Default output format`: `json`
 
----
-
-## 🛠️ Prasyarat (Prerequisites)
-
-Sebelum memulai, pastikan Anda memiliki:
-1.  **AWS Account** dengan akses Administrator.
-2.  **Terraform CLI** terinstall (v1.5+).
-3.  **AWS CLI** terkonfigurasi (`aws configure`).
-4.  **Git** untuk kontrol versi.
-
----
-
-## 🚀 Langkah-Langkah Instalasi (Step-by-Step)
-
-### 1. Persiapan Environment
-```bash
+### B. Persiapan Git
+Pastikan Git sudah terinstall, lalu clone repositori ini:
+```powershell
 git clone https://github.com/Alfi-99/terraform-gb-deplyoment.git
 cd terraform-gb-deplyoment
 ```
 
-### 2. Konfigurasi Variabel
-Buat file `terraform.tfvars` dari template yang tersedia:
-```bash
+### C. Install Terraform
+Download dari [terraform.io](https://www.terraform.io/downloads) dan pastikan path-nya terdaftar di Environment Variables Anda. Cek dengan: `terraform version`.
+
+---
+
+## 🚀 2. Cara Deploy Infrastruktur
+
+### Langkah 1: Inisialisasi
+```powershell
+terraform init
+```
+
+### Langkah 2: Konfigurasi Variabel
+Salin file template variabel:
+```powershell
 cp terraform.tfvars.example terraform.tfvars
 ```
-Edit file tersebut dan masukkan nilai yang sesuai (Region, Kredensial, dll).
+Buka file `terraform.tfvars` dan isi sesuai kebutuhan (Project Name, Environment, dll).
 
-### 3. Inisialisasi & Deploy Awal
-```bash
-terraform init
+### Langkah 3: Eksekusi
+```powershell
 terraform apply -auto-approve
 ```
-*Tunggu sekitar 10-15 menit hingga RDS dan Elastic Beanstalk selesai dikonfigurasi.*
+*Tunggu proses 10-15 menit. Output akan menampilkan `amplify_app_url` dan `api_gateway_url`.*
 
 ---
 
-## 🧪 Cara Pengujian (Live Testing)
+## 🧪 3. Verifikasi & Testing Database
 
-Setelah `terraform apply` selesai, Anda akan mendapatkan output berupa **`amplify_app_url`**. Buka URL tersebut di browser.
+Sistem ini memiliki fitur **Self-Healing Database**. Anda tidak perlu menjalankan script SQL manual.
 
-### Fitur Self-Healing Database
-Anda **TIDAK PERLU** menjalankan script SQL secara manual. 
-1.  Klik tombol **"Ambil Data dari Lambda GET"**.
-2.  Lambda akan mendeteksi jika tabel belum ada, lalu otomatis menjalankan perintah:
-    `CREATE DATABASE IF NOT EXISTS gbappdb;`
-    `CREATE TABLE IF NOT EXISTS items (...);`
-3.  Jika muncul pesan *"Berhasil mengambil 0 data"*, berarti database sudah siap digunakan.
+1.  Buka **`amplify_app_url`** di browser.
+2.  Klik tombol **"Ambil Data dari Lambda GET"**.
+3.  Lambda akan otomatis:
+    - Membuat database `gbappdb`.
+    - Membuat tabel `items`.
+4.  Coba masukkan data via form **POST** untuk memastikan RDS & DynamoDB berjalan.
 
 ---
 
-## 🔄 Manajemen Blue/Green Deployment
+## 🔄 4. Operasional Blue/Green
 
-Sistem ini mendukung transisi trafik yang mulus. Anda bisa mengatur persentase trafik di Application Load Balancer.
-
-| Perintah | Efek |
+| Kebutuhan | Perintah |
 | :--- | :--- |
-| `terraform apply -var="active_color=green"` | Mengalihkan trafik 100% ke environment **GREEN**. |
-| `terraform apply -var="active_color=blue"` | Mengalihkan trafik 100% ke environment **BLUE** (Default). |
+| **Switch ke GREEN** | `terraform apply -var="active_color=green"` |
+| **Rollback ke BLUE** | `terraform apply -var="active_color=blue"` |
+
+---
+
+## 🧹 5. Cara Menghapus (Cleanup)
+
+Untuk menghapus semua resource agar tidak kena tagihan:
+
+1.  **Kosongkan S3 (Jika diperlukan manual)**:
+    - Buka S3 Console, pilih bucket, klik **Empty**.
+2.  **Jalankan Destroy**:
+    ```powershell
+    terraform destroy -auto-approve
+    ```
 
 ---
 
 ## 📂 Struktur Repositori
-
--   `lambda/`: Kode sumber untuk fungsi GET dan POST.
--   `lambda/layer/`: Shared utilities (Database connection, Logging, Response helper).
--   `app-bundle/`: Kode untuk aplikasi Elastic Beanstalk (Node.js).
--   `index.html`: Dashboard utama yang di-host di Amplify.
--   `*.tf`: File konfigurasi infrastruktur Terraform.
+- `lambda/`: Logika backend (Node.js).
+- `lambda/layer/`: Koneksi DB & Logging (Shared).
+- `app-bundle/`: Aplikasi Elastic Beanstalk.
+- `*.tf`: Definisi infrastruktur AWS.
 
 ---
-
-## ⚠️ Troubleshooting
-
-**1. Error: Failed to fetch (POST)**
--   Pastikan Anda sudah menjalankan Lambda GET minimal satu kali untuk inisialisasi tabel.
--   Cek apakah `API_URL` di `index.html` sudah sesuai dengan output API Gateway.
-
-**2. Database Connection Timeout**
--   Lambda membutuhkan akses VPC. Pastikan Security Group RDS mengizinkan traffic dari Lambda Security Group. (Sudah dikonfigurasi otomatis oleh Terraform ini).
-
-**3. Elastic Beanstalk "Busy"**
--   Tunggu 1-2 menit sebelum menjalankan `terraform apply` lagi. AWS sedang melakukan update environment.
-
-## 🧹 Pembersihan (Cleanup / Destroy)
-
-Untuk menghindari tagihan yang tidak diinginkan, Anda dapat menghapus seluruh infrastruktur dengan satu perintah:
-
-```powershell
-terraform destroy -auto-approve
-```
-
-> [!CAUTION]
-> **Peringatan Data Hilang**: Perintah ini akan menghapus semua data di RDS, DynamoDB, dan seluruh file di S3 secara permanen.
-> 
-> **Catatan S3**: Jika perintah gagal karena bucket S3 tidak kosong, silakan kosongkan isi bucket secara manual melalui AWS Console terlebih dahulu, lalu ulangi perintah `destroy`.
-
----
-
-## 📜 Lisensi & Kontributor
-Proyek ini dikembangkan khusus untuk transformasi digital **Koperasi Merah Putih**.
-
-**Lead Architect**: Alfi-99 & Antigravity AI
-**Tahun**: 2026
-
----
-*Membangun Negeri dengan Teknologi Digital.*
+*Lead Architect: Alfi-99 | Digital Transformation 2026*

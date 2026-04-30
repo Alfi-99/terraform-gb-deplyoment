@@ -8,6 +8,7 @@
 # ---------------------------------------------------------------------------
 resource "aws_s3_bucket" "deployment" {
   bucket = local.deployment_bucket_name
+  force_destroy = true
 
   tags = {
     Name    = "${local.name_prefix}-deployment"
@@ -87,6 +88,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "deployment" {
 # ---------------------------------------------------------------------------
 resource "aws_s3_bucket" "app_storage" {
   bucket = local.app_bucket_name
+  force_destroy = true
 
   tags = {
     Name    = "${local.name_prefix}-storage"
