@@ -4,7 +4,9 @@
   "description": "Placeholder for Koperasi Merah Putih",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "test": "echo \"Running tests...\" && exit 0",
+    "build": "echo \"Building application...\" && exit 0"
   },
   "dependencies": {
     "express": "^4.18.2"
