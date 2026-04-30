@@ -1,12 +1,21 @@
-﻿const http = require('http');
-const server = http.createServer((req, res) => {
-  if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'healthy' }));
-  } else {
-    res.writeHead(200);
-    res.end('Hello from Blue/Green App!');
-  }
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 8080;
+
+// Root route agar Load Balancer senang
+app.get('/', (req, res) => {
+  res.status(200).send('Koperasi Merah Putih - App is running');
 });
-server.listen(process.env.PORT || 8080);
-console.log('Server running on port', process.env.PORT || 8080);
+
+// Health check route
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    environment: process.env.DEPLOYMENT_COLOR || 'unknown',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});

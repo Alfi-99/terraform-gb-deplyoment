@@ -257,9 +257,9 @@ resource "aws_elastic_beanstalk_environment" "blue" {
   }
 
   tags = {
-    Name  = "${local.name_prefix}-blue-env"
     Color = "blue"
   }
+
 
   depends_on = [
     aws_iam_role_policy_attachment.eb_web_tier,
@@ -321,13 +321,27 @@ resource "aws_elastic_beanstalk_environment" "green" {
   }
 
   tags = {
-    Name  = "${local.name_prefix}-green-env"
     Color = "green"
   }
+
 
   depends_on = [
     aws_iam_role_policy_attachment.eb_web_tier,
     aws_iam_role_policy_attachment.eb_worker_tier,
     aws_iam_role_policy_attachment.eb_enhanced_health
   ]
+}
+
+# ---------------------------------------------------------------------------
+# Lampirkan Auto Scaling Group EB ke Target Group ALB
+# Ini yang akan mengisi Target Group sehingga ALB tidak 503 lagi
+# ---------------------------------------------------------------------------
+resource "aws_autoscaling_attachment" "blue" {
+  autoscaling_group_name = aws_elastic_beanstalk_environment.blue.autoscaling_groups[0]
+  lb_target_group_arn    = aws_lb_target_group.blue.arn
+}
+
+resource "aws_autoscaling_attachment" "green" {
+  autoscaling_group_name = aws_elastic_beanstalk_environment.green.autoscaling_groups[0]
+  lb_target_group_arn    = aws_lb_target_group.green.arn
 }
