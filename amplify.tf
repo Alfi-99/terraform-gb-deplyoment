@@ -11,24 +11,21 @@ resource "aws_amplify_app" "frontend" {
   # OAuth token untuk akses GitHub (atau gunakan OIDC)
   access_token = var.github_access_token
 
-  # Build specification (bisa juga pakai amplify.yml di repo)
+  # Build specification untuk website statis (HTML saja)
   build_spec = <<-EOT
     version: 1
     frontend:
       phases:
-        preBuild:
-          commands:
-            - npm ci
         build:
           commands:
-            - npm run build
+            - echo "Deploying static HTML..."
       artifacts:
-        baseDirectory: dist
+        baseDirectory: .
         files:
-          - '**/*'
+          - 'index.html'
+          - 'aws-koperasimerahputih.html'
       cache:
-        paths:
-          - node_modules/**/*
+        paths: []
   EOT
 
   # Environment variables untuk frontend
@@ -37,7 +34,6 @@ resource "aws_amplify_app" "frontend" {
     VITE_APP_NAME         = var.project_name
     VITE_ENV              = var.environment
     AMPLIFY_DIFF_DEPLOY   = "false"
-    AMPLIFY_MONOREPO_APP_ROOT = "frontend"
   }
 
   # Custom rules: SPA routing (semua path ke index.html)

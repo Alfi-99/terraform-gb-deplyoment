@@ -541,26 +541,13 @@ terraform apply -var="active_color=blue"
 
 ```bash
 # Lihat ERROR logs terbaru
-aws dynamodb query \
-  --table-name "koperasi-merah-putih-prod-app-logs" \
-  --index-name "log-level-index" \
-  --key-condition-expression "log_level = :level" \
-  --expression-attribute-values '{":level":{"S":"ERROR"}}' \
-  --scan-index-forward false \
-  --limit 10
+aws dynamodb query --table-name "koperasi-merah-putih-prod-app-logs" --index-name "log-level-index" --key-condition-expression "log_level = :level" --expression-attribute-values '{":level":{"S":"ERROR"}}' --scan-index-forward false --limit 10
 
 # Lihat log per service (Lambda POST)
-aws dynamodb query \
-  --table-name "koperasi-merah-putih-prod-app-logs" \
-  --key-condition-expression "service_id = :sid" \
-  --expression-attribute-values '{":sid":{"S":"lambda-post-ap-southeast-1"}}' \
-  --scan-index-forward false \
-  --limit 20
+aws dynamodb query --table-name "koperasi-merah-putih-prod-app-logs" --key-condition-expression "service_id = :sid" --expression-attribute-values '{":sid":{"S":"lambda-post-ap-southeast-1"}}' --scan-index-forward false --limit 20
 
 # Lihat riwayat deployment
-aws dynamodb scan \
-  --table-name "koperasi-merah-putih-prod-deployments" \
-  --limit 10
+aws dynamodb scan --table-name "koperasi-merah-putih-prod-deployments" --limit 10
 ```
 
 ---
