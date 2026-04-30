@@ -34,6 +34,9 @@ jobs:
   test-and-build:
     name: Test & Build Application
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-bundle
 
     steps:
       - name: Checkout kode
@@ -44,6 +47,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: app-bundle/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -93,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: deployment-package
-          path: ${{ env.ARTIFACT_NAME }}
+          path: app-bundle/${{ env.ARTIFACT_NAME }}
           retention-days: 5
 
   # ==========================================================================
