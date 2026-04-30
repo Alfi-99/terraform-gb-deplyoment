@@ -108,6 +108,21 @@ exports.handler = async (event) => {
  * Handler: List semua items dengan pagination
  */
 async function handleListItems(queryParams, requestId) {
+  // Auto-initialize table if not exists (Safety mechanism)
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+  } catch (e) {
+    console.error("Auto-init failed:", e);
+  }
+
   const limit = Math.min(parseInt(queryParams.limit || '10'), 100); // Max 100 items
   const offset = parseInt(queryParams.offset || '0');
   const search = queryParams.search || '';

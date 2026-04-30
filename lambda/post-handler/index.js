@@ -110,6 +110,21 @@ exports.handler = async (event) => {
  * Handler: Buat item baru
  */
 async function handleCreateItem(body, requestId) {
+  // Auto-initialize table if not exists
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+  } catch (e) {
+    console.error("Auto-init failed:", e);
+  }
+
   // Validasi input
   if (!body.name || !body.description) {
     await log(SERVICE_ID, 'WARN', 'Validasi gagal: name dan description wajib diisi', {
