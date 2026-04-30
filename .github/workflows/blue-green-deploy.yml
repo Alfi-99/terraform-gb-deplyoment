@@ -23,9 +23,9 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1
-  EB_APPLICATION_NAME: gb-app-prod-app
+  EB_APPLICATION_NAME: koperasi-merah-putih-prod-app
   DEPLOYMENT_BUCKET: ${{ secrets.AWS_DEPLOYMENT_BUCKET }}
-  DYNAMODB_DEPLOYMENT_TABLE: gb-app-prod-deployments
+  DYNAMODB_DEPLOYMENT_TABLE: koperasi-merah-putih-prod-deployments
 
 jobs:
   # ==========================================================================
@@ -156,7 +156,7 @@ jobs:
 
       - name: Deploy ke Elastic Beanstalk (${{ env.DEPLOY_COLOR }})
         run: |
-          EB_ENV_NAME="gb-app-prod-${{ env.DEPLOY_COLOR }}"
+          EB_ENV_NAME="koperasi-merah-putih-prod-${{ env.DEPLOY_COLOR }}"
 
           echo "🚀 Deploy ke environment: ${EB_ENV_NAME}"
 
@@ -176,7 +176,7 @@ jobs:
 
       - name: Health check setelah deployment
         run: |
-          EB_ENV_NAME="gb-app-prod-${{ env.DEPLOY_COLOR }}"
+          EB_ENV_NAME="koperasi-merah-putih-prod-${{ env.DEPLOY_COLOR }}"
 
           # Ambil URL environment
           ENV_URL=$(aws elasticbeanstalk describe-environments \
@@ -252,7 +252,7 @@ jobs:
         run: |
           # Ambil ARN ALB
           ALB_ARN=$(aws elbv2 describe-load-balancers \
-            --names "gb-app-prod-alb" \
+            --names "koperasi-merah-putih-prod-alb" \
             --query 'LoadBalancers[0].LoadBalancerArn' \
             --output text)
           echo "ALB_ARN=${ALB_ARN}" >> $GITHUB_ENV
@@ -266,11 +266,11 @@ jobs:
 
           # Ambil Target Group ARN
           BLUE_TG_ARN=$(aws elbv2 describe-target-groups \
-            --names "gb-app-prod-blue-tg" \
+            --names "koperasi-merah-putih-prod-blue-tg" \
             --query 'TargetGroups[0].TargetGroupArn' \
             --output text)
           GREEN_TG_ARN=$(aws elbv2 describe-target-groups \
-            --names "gb-app-prod-green-tg" \
+            --names "koperasi-merah-putih-prod-green-tg" \
             --query 'TargetGroups[0].TargetGroupArn' \
             --output text)
 

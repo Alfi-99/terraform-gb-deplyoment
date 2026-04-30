@@ -1,6 +1,6 @@
-# 🚀 AWS Blue/Green Deployment dengan Terraform
+# 🚀 AWS Blue/Green Deployment — Koperasi Merah Putih
 
-> Arsitektur serverless modern dengan Blue/Green deployment, logging ke DynamoDB, dan free tier AWS.
+> Arsitektur cloud modern dengan Blue/Green deployment, logging DynamoDB, dan optimalisasi AWS Free Tier.
 
 ---
 
@@ -53,7 +53,7 @@ Internet
 | 8 | S3 | Free tier (5GB) | Artifact & storage |
 | 9 | EFS | Berbayar (low cost) | Shared file storage |
 | 10 | AWS Amplify | Free tier | Frontend hosting |
-| 11 | Secrets Manager | $0.40/secret/bln | Simpan kredensial |
+| 11 | Secrets Manager | $0.40/secret/bln | Simpan kredensial (30H Trial) |
 
 ---
 
@@ -61,7 +61,7 @@ Internet
 
 ### Babak 1: Fondasi Jaringan — VPC
 
-Dikisahkan sebuah tim developer ingin membangun aplikasi web modern di AWS. Langkah pertama yang mereka ambil adalah membangun **rumah** untuk semua komponen — sebuah **Virtual Private Cloud (VPC)**.
+Dikisahkan sebuah tim developer ingin membangun aplikasi web modern bagi **Koperasi Merah Putih** di AWS. Langkah pertama yang mereka ambil adalah membangun **rumah** untuk semua komponen — sebuah **Virtual Private Cloud (VPC)**.
 
 VPC ini ibarat sebuah gedung kantor privat yang terisolasi dari dunia luar. Di dalamnya terdapat dua zona:
 
@@ -70,10 +70,10 @@ VPC ini ibarat sebuah gedung kantor privat yang terisolasi dari dunia luar. Di d
 
 Yang perlu dikonfigurasi di VPC:
 - CIDR Block: `10.0.0.0/16`
-- 2 Public Subnet di AZ berbeda (multi-AZ untuk HA)
-- 2 Private Subnet di AZ berbeda
+- 2 Public Subnet: `10.0.1.0/24` (AZ-1a) dan `10.0.2.0/24` (AZ-1b)
+- 2 Private Subnet: `10.0.11.0/24` (AZ-1a) dan `10.0.12.0/24` (AZ-1b)
 - Internet Gateway (pintu ke internet untuk public subnet)
-- NAT Gateway (pintu ke internet untuk private subnet, one-way)
+- NAT Gateway (simulasi via NAT Instance t2.micro)
 - Route Tables untuk masing-masing subnet
 - VPC Endpoint untuk S3 dan DynamoDB (hemat biaya NAT)
 
@@ -98,7 +98,7 @@ Tim membutuhkan **dua gudang**:
 **S3 Bucket #1 — Deployment Artifacts**
 Tempat GitHub Actions menyimpan ZIP file hasil build. Setiap versi baru disimpan di sini sebelum di-deploy ke Elastic Beanstalk.
 - Konfigurasi: Versioning enabled, enkripsi AES256, lifecycle 30 hari
-- Path: `s3://gb-app-prod-deploy-xxxx/deployments/v1.0.0-blue/app.zip`
+- Path: `s3://koperasi-merah-putih-prod-deploy-xxxx/deployments/v1.0.0-blue/app.zip`
 
 **S3 Bucket #2 — Application Storage**
 Tempat aplikasi menyimpan file upload user, gambar, dokumen, dll.
@@ -213,20 +213,20 @@ Yang dikonfigurasi:
 
 Tiga tabel yang dibuat:
 
-**1. `gb-app-prod-app-logs`** — Log semua service
+**1. `koperasi-merah-putih-prod-app-logs`** — Log semua service
 - Partition key: `service_id` (lambda-post, lambda-get, eb-blue, dll)
 - Sort key: `timestamp` (ISO 8601)
 - GSI: `log-level-index` (query ERROR logs)
 - GSI: `request-id-index` (distributed tracing)
 - TTL: 30 hari (auto-delete log lama)
 
-**2. `gb-app-prod-api-requests`** — Log setiap API request
+**2. `koperasi-merah-putih-prod-api-requests`** — Log setiap API request
 - Partition key: `request_id`
 - Sort key: `timestamp`
 - GSI: `endpoint-index` (analisis per endpoint)
 - GSI: `status-code-index` (analisis error rate)
 
-**3. `gb-app-prod-deployments`** — Riwayat deployment
+**3. `koperasi-merah-putih-prod-deployments`** — Riwayat deployment
 - Partition key: `deployment_id`
 - Sort key: `timestamp`
 - GSI: `color-index` (lihat history blue/green)
@@ -300,6 +300,9 @@ aws configure
 # Default output: json
 ```
 
+> [!IMPORTANT]
+> **Izin IAM yang Diperlukan:** User IAM yang digunakan harus memiliki akses untuk membuat resource. Untuk keperluan Lab, disarankan menggunakan policy **`AdministratorAccess`**. Jika ingin lebih spesifik, pastikan user memiliki akses ke: *VPC, IAM (Create Role), S3, RDS, DynamoDB, Lambda, API Gateway, Elastic Beanstalk, Amplify, dan EFS.*
+
 ### Step 3: Buat file terraform.tfvars
 
 ```bash
@@ -346,7 +349,7 @@ EOF
 
 cat > app-bundle/package.json << 'EOF'
 {
-  "name": "gb-app",
+  "name": "koperasi-merah-putih",
   "version": "1.0.0",
   "scripts": { "start": "node app.js" },
   "engines": { "node": ">=20" }
@@ -435,7 +438,7 @@ curl "http://${ALB_URL}/health"
 
 # 2. Cek status environment GREEN
 aws elasticbeanstalk describe-environments \
-  --environment-names "gb-app-prod-green" \
+  --environment-names "koperasi-merah-putih-prod-green" \
   --query 'Environments[0].{Status:Status,Health:Health,HealthStatus:HealthStatus}'
 ```
 
@@ -462,7 +465,7 @@ terraform apply -var="active_color=blue"
 ```bash
 # Lihat ERROR logs terbaru
 aws dynamodb query \
-  --table-name "gb-app-prod-app-logs" \
+  --table-name "koperasi-merah-putih-prod-app-logs" \
   --index-name "log-level-index" \
   --key-condition-expression "log_level = :level" \
   --expression-attribute-values '{":level":{"S":"ERROR"}}' \
@@ -471,7 +474,7 @@ aws dynamodb query \
 
 # Lihat log per service (Lambda POST)
 aws dynamodb query \
-  --table-name "gb-app-prod-app-logs" \
+  --table-name "koperasi-merah-putih-prod-app-logs" \
   --key-condition-expression "service_id = :sid" \
   --expression-attribute-values '{":sid":{"S":"lambda-post-ap-southeast-1"}}' \
   --scan-index-forward false \
@@ -479,7 +482,7 @@ aws dynamodb query \
 
 # Lihat riwayat deployment
 aws dynamodb scan \
-  --table-name "gb-app-prod-deployments" \
+  --table-name "koperasi-merah-putih-prod-deployments" \
   --limit 10
 ```
 
@@ -508,7 +511,7 @@ terraform destroy
 | S3 | 5GB + 20K GET/bln | **Gratis** |
 | DynamoDB | 25GB + 25WCU/25RCU | **Gratis** |
 | Amplify | 1000 build menit/bln | **Gratis** |
-| ALB | **Tidak ada free tier** | ~$16/bln |
+| ALB | 750 jam/bln (12 bln pertama) | **Gratis** |
 | NAT Gateway | **Tidak ada free tier** | ~$32/bln |
 | EFS | **Tidak ada free tier** | ~$0.30/GB/bln |
 

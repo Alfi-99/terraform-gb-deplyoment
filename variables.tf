@@ -4,7 +4,7 @@
 variable "project_name" {
   description = "Nama project, digunakan sebagai prefix semua resource"
   type        = string
-  default     = "gb-app"
+  default     = "koperasi-merah-putih"
 }
 
 variable "environment" {
@@ -43,7 +43,7 @@ variable "public_subnet_cidrs" {
 variable "private_subnet_cidrs" {
   description = "CIDR blocks untuk private subnets"
   type        = list(string)
-  default     = ["10.0.10.0/24", "10.0.20.0/24"]
+  default     = ["10.0.11.0/24", "10.0.12.0/24"]
 }
 
 variable "availability_zones" {
