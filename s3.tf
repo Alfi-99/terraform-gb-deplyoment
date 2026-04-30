@@ -15,6 +15,24 @@ resource "aws_s3_bucket" "deployment" {
   }
 }
 
+# Bucket Policy agar ALB bisa menulis access logs (Regional ap-southeast-1)
+resource "aws_s3_bucket_policy" "alb_logging" {
+  bucket = aws_s3_bucket.deployment.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::114774131450:root" # ID akun ELB untuk ap-southeast-1
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.deployment.arn}/alb-logs/*"
+      }
+    ]
+  })
+}
+
 # Versioning untuk deployment bucket (track setiap version)
 resource "aws_s3_bucket_versioning" "deployment" {
   bucket = aws_s3_bucket.deployment.id
@@ -50,6 +68,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "deployment" {
 
   rule {
     id     = "cleanup-old-versions"
+    filter {}
     status = "Enabled"
 
     noncurrent_version_expiration {
@@ -123,6 +142,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "app_storage" {
 
   rule {
     id     = "transition-to-ia"
+    filter {}
     status = "Enabled"
 
     # Pindahkan ke Infrequent Access setelah 30 hari (lebih murah)

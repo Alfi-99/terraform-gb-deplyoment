@@ -33,7 +33,7 @@ resource "aws_lb" "main" {
 
 # Target Group BLUE
 resource "aws_lb_target_group" "blue" {
-  name        = "${local.name_prefix}-blue-tg"
+  name        = "${substr(local.name_prefix, 0, 24)}-blue"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
@@ -61,7 +61,7 @@ resource "aws_lb_target_group" "blue" {
 
 # Target Group GREEN
 resource "aws_lb_target_group" "green" {
-  name        = "${local.name_prefix}-green-tg"
+  name        = "${substr(local.name_prefix, 0, 24)}-green"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id

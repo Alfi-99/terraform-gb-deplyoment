@@ -1,0 +1,6 @@
+﻿{
+  "name": "koperasi-merah-putih",
+  "version": "1.0.0",
+  "scripts": { "start": "node app.js" },
+  "engines": { "node": ">=20" }
+}

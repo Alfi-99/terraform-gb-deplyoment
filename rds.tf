@@ -19,7 +19,7 @@ resource "aws_db_subnet_group" "main" {
 # DB Parameter Group - Konfigurasi database engine
 resource "aws_db_parameter_group" "main" {
   name        = "${local.name_prefix}-db-params"
-  family      = "${var.db_engine}${split(".", var.db_engine_version)[0]}"
+  family      = "mysql8.0"
   description = "Parameter group untuk ${local.name_prefix}"
 
   # Konfigurasi performa MySQL
@@ -93,9 +93,8 @@ resource "aws_db_instance" "main" {
   # Monitoring
   monitoring_interval = 0 # 0 = disable enhanced monitoring (gratis)
 
-  # Performance Insights (free tier: 7 hari retention)
-  performance_insights_enabled          = true
-  performance_insights_retention_period = 7
+  # Performance Insights (Matikan untuk menghindari masalah kompatibilitas t3.micro)
+  performance_insights_enabled          = false
 
   # Auto minor version upgrade
   auto_minor_version_upgrade = true

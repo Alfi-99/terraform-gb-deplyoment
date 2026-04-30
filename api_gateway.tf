@@ -285,10 +285,7 @@ resource "aws_api_gateway_stage" "main" {
   # X-Ray tracing
   xray_tracing_enabled = true
 
-  # Throttling untuk free tier
-  default_route_settings {
-    # Kosongkan, akan diset via method settings
-  }
+  # Throttling diset via aws_api_gateway_method_settings
 
   tags = {
     Name = "${local.name_prefix}-api-stage"
@@ -303,6 +300,33 @@ resource "aws_cloudwatch_log_group" "api_gateway" {
   tags = {
     Name = "${local.name_prefix}-api-gateway-logs"
   }
+}
+
+# Pendaftaran IAM Role di tingkat akun untuk API Gateway logging
+resource "aws_api_gateway_account" "main" {
+  cloudwatch_role_arn = aws_iam_role.api_gateway_logging.arn
+}
+
+resource "aws_iam_role" "api_gateway_logging" {
+  name = "${local.name_prefix}-api-gw-logging-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "api_gateway_logging" {
+  role       = aws_iam_role.api_gateway_logging.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
 # Method Settings: Throttling per method
@@ -335,6 +359,9 @@ resource "aws_api_gateway_usage_plan" "main" {
     offset = 0
     period = "MONTH"
   }
+
+  # Throttling settings untuk REST API v1 dilakukan melalui resource aws_api_gateway_method_settings jika diperlukan.
+  # Blok default_route_settings dihapus karena tidak kompatibel.
 
   throttle_settings {
     burst_limit = 500

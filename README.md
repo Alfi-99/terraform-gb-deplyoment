@@ -313,7 +313,7 @@ cp terraform.tfvars.example terraform.tfvars
 Isi minimal yang wajib diubah:
 ```hcl
 db_password         = "PasswordKuat123!"
-github_repo_url     = "https://github.com/username/repo"
+github_repo_url     = "https://github.com/user/repositori"
 github_access_token = "ghp_xxxxxxxxxxxx"
 ```
 
@@ -327,10 +327,50 @@ cd ../../..
 
 ### Step 5: Buat Deployment Bundle Awal
 
+> [!NOTE]
 > Elastic Beanstalk membutuhkan file ZIP di S3 sebelum environment bisa dibuat. Kita perlu membuat placeholder dulu.
 
+### Step 5: Buat Deployment Bundle Awal
+
+> [!NOTE]
+> Elastic Beanstalk membutuhkan file ZIP di S3 sebelum environment bisa dibuat. Kita perlu membuat placeholder dulu.
+
+#### A. Untuk Windows (PowerShell) - **Gunakan ini jika Anda di Windows**
+```powershell
+# 1. Buat folder dan file app.js
+mkdir -Force app-bundle
+@'
+const http = require('http');
+const server = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'healthy' }));
+  } else {
+    res.writeHead(200);
+    res.end('Hello from Blue/Green App!');
+  }
+});
+server.listen(process.env.PORT || 8080);
+console.log('Server running on port', process.env.PORT || 8080);
+'@ | Out-File -FilePath "app-bundle/app.js" -Encoding utf8
+
+# 2. Buat file package.json
+@'
+{
+  "name": "koperasi-merah-putih",
+  "version": "1.0.0",
+  "scripts": { "start": "node app.js" },
+  "engines": { "node": ">=20" }
+}
+'@ | Out-File -FilePath "app-bundle/package.json" -Encoding utf8
+
+# 3. Buat file ZIP
+Compress-Archive -Path "app-bundle/*" -DestinationPath "app-placeholder.zip" -Force
+```
+
+#### B. Untuk Linux / macOS / Git Bash
 ```bash
-# Buat bundle minimal untuk Blue
+# Buat folder dan app.js
 mkdir -p app-bundle
 cat > app-bundle/app.js << 'EOF'
 const http = require('http');
@@ -347,6 +387,7 @@ server.listen(process.env.PORT || 8080);
 console.log('Server running on port', process.env.PORT || 8080);
 EOF
 
+# Buat package.json
 cat > app-bundle/package.json << 'EOF'
 {
   "name": "koperasi-merah-putih",
@@ -386,11 +427,17 @@ Review output. Pastikan tidak ada resource berbayar yang tidak diinginkan.
 
 ### Step 8: Upload Placeholder ke S3 (Sebelum Apply)
 
+> [!NOTE]
 > Karena Elastic Beanstalk membutuhkan file di S3, kita perlu strategi dua-tahap.
+
+**Pilih perintah sesuai OS Anda:**
+
+<details>
+<summary><b>Linux / macOS / Git Bash</b></summary>
 
 ```bash
 # Tahap 1: Buat hanya S3 bucket dulu
-terraform apply -target=aws_s3_bucket.deployment -target=random_id.bucket_suffix -auto-approve
+terraform apply -target="aws_s3_bucket.deployment" -target="random_id.bucket_suffix" -auto-approve
 
 # Ambil nama bucket yang dibuat
 BUCKET=$(terraform output -raw s3_deployment_bucket)
@@ -400,10 +447,35 @@ echo "Bucket: $BUCKET"
 aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v1.0.0-blue/app.zip"
 aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v1.0.1-green/app.zip"
 ```
+</details>
+
+<details>
+<summary><b>Windows (PowerShell)</b></summary>
+
+```powershell
+# Tahap 1: Buat hanya S3 bucket dulu (Gunakan tanda kutip untuk target)
+terraform apply -target="aws_s3_bucket.deployment" -target="random_id.bucket_suffix" -auto-approve
+
+# Ambil nama bucket yang dibuat
+$BUCKET = terraform output -raw s3_deployment_bucket
+echo "Bucket: $BUCKET"
+
+# Upload placeholder untuk Blue dan Green
+aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v1.0.0-blue/app.zip"
+aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v1.0.1-green/app.zip"
+```
+</details>
 
 ### Step 9: Terraform Apply Penuh
 
-```bash
+> [!IMPORTANT]
+> Karena kita baru saja melakukan `apply` untuk S3 di Step 8, file `tfplan` lama Anda sekarang sudah kedaluwarsa (*stale*). Anda **wajib** membuat ulang plan sebelum apply penuh.
+
+```powershell
+# 1. Buat ulang plan yang segar
+terraform plan -out=tfplan
+
+# 2. Jalankan apply penuh
 terraform apply tfplan
 ```
 
