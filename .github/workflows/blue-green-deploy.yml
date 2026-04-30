@@ -160,7 +160,7 @@ jobs:
 
       - name: Deploy ke Elastic Beanstalk (${{ env.DEPLOY_COLOR }})
         run: |
-          EB_ENV_NAME="koperasi-merah-putih-prod-${{ env.DEPLOY_COLOR }}"
+          EB_ENV_NAME="koperasi-${{ env.DEPLOY_COLOR }}"
 
           echo "🚀 Deploy ke environment: ${EB_ENV_NAME}"
 
@@ -180,7 +180,7 @@ jobs:
 
       - name: Health check setelah deployment
         run: |
-          EB_ENV_NAME="koperasi-merah-putih-prod-${{ env.DEPLOY_COLOR }}"
+          EB_ENV_NAME="koperasi-${{ env.DEPLOY_COLOR }}"
 
           # Ambil URL environment
           ENV_URL=$(aws elasticbeanstalk describe-environments \
@@ -254,8 +254,6 @@ jobs:
       - name: Ambil ARN Load Balancer dan Target Groups
         id: get-resources
         run: |
-          # Ambil ARN ALB
-          ALB_ARN=$(aws elbv2 describe-load-balancers \
             --names "koperasi-merah-putih-prod-alb" \
             --query 'LoadBalancers[0].LoadBalancerArn' \
             --output text)
