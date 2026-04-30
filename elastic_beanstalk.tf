@@ -212,6 +212,7 @@ resource "aws_elastic_beanstalk_environment" "blue" {
   application         = aws_elastic_beanstalk_application.main.name
   solution_stack_name = data.aws_elastic_beanstalk_solution_stack.nodejs.name
   version_label       = aws_elastic_beanstalk_application_version.blue.name
+  wait_for_ready_timeout = "40m"
 
   # Security group untuk EC2
   setting {
@@ -275,6 +276,7 @@ resource "aws_elastic_beanstalk_environment" "green" {
   application         = aws_elastic_beanstalk_application.main.name
   solution_stack_name = data.aws_elastic_beanstalk_solution_stack.nodejs.name
   version_label       = aws_elastic_beanstalk_application_version.green.name
+  wait_for_ready_timeout = "40m"
 
   # Security group untuk EC2
   setting {
