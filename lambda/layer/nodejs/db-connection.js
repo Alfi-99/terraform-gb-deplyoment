@@ -71,7 +71,7 @@ async function getConnection() {
  */
 async function query(sql, params = []) {
   const pool = await getConnection();
-  const [rows] = await pool.execute(sql, params);
+  const [rows] = await pool.query(sql, params);
   return rows;
 }
 

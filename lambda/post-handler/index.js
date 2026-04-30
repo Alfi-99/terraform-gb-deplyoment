@@ -140,12 +140,12 @@ async function handleCreateItem(body, requestId) {
   }
 
   const result = await transaction(async (conn) => {
-    const [insertResult] = await conn.execute(
+    const [insertResult] = await conn.query(
       'INSERT INTO items (name, description, created_at, updated_at) VALUES (?, ?, NOW(), NOW())',
       [body.name, body.description]
     );
 
-    const [newItem] = await conn.execute(
+    const [newItem] = await conn.query(
       'SELECT * FROM items WHERE id = ?',
       [insertResult.insertId]
     );
