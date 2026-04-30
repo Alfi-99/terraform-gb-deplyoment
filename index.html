@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Blue/Green Lab — Koperasi Merah Putih</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --aws-orange: #FF9900;
+    --aws-dark: #232F3E;
+    --free-green: #00A86B;
+    --warn-yellow: #F5A623;
+    --blue-env: #3572ef;
+    --green-env: #10b981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #0F1117; color: #E8EBF0; min-height: 100vh; }
+
+  /* ── Header ── */
+  .header {
+    background: var(--aws-dark);
+    border-bottom: 3px solid var(--free-green);
+    padding: 20px 36px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .header-title { font-size: 20px; font-weight: 700; color: #fff; }
+  .header-sub { font-size: 12px; color: var(--free-green); font-family: 'IBM Plex Mono', monospace; margin-top: 3px; }
+  .free-badge {
+    margin-left: auto;
+    background: rgba(0,168,107,0.15);
+    border: 1.5px solid var(--free-green);
+    color: var(--free-green);
+    font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+    padding: 5px 14px; border-radius: 20px; font-weight: 600;
+  }
+
+  /* ── Container ── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 28px 36px; }
+
+  /* ── Free Tier Notice Banner ── */
+  .notice-banner {
+    background: rgba(0,168,107,0.08);
+    border: 1px solid rgba(0,168,107,0.4);
+    border-left: 4px solid var(--free-green);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .notice-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .notice-title { font-size: 13px; font-weight: 700; color: var(--free-green); margin-bottom: 6px; }
+  .notice-text { font-size: 12.5px; color: #8892A4; line-height: 1.6; }
+  .notice-text strong { color: #CBD5E0; }
+
+  /* ── Warning banner ── */
+  .warn-banner {
+    background: rgba(245,166,35,0.08);
+    border: 1px solid rgba(245,166,35,0.35);
+    border-left: 4px solid var(--warn-yellow);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 12.5px; color: #8892A4; line-height: 1.6;
+  }
+  .warn-banner strong { color: var(--warn-yellow); }
+
+  /* ── Free Tier table ── */
+  .tier-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; font-size: 12.5px; }
+  .tier-table th {
+    background: #1A2030; color: #9AA5B4;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 10px 14px; text-align: left; border-bottom: 1px solid #2A3142;
+  }
+  .tier-table td { padding: 9px 14px; border-bottom: 1px solid #1E2535; color: #CBD5E0; vertical-align: top; }
+  .tier-table tr:last-child td { border-bottom: none; }
+  .tier-table tr:hover td { background: rgba(255,153,0,0.03); }
+  .tag-free { background: rgba(0,168,107,0.2); color: var(--free-green); font-size: 10px; font-family: 'IBM Plex Mono', monospace; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .tag-limit { background: rgba(245,166,35,0.15); color: var(--warn-yellow); font-size: 10px; font-family: 'IBM Plex Mono', monospace; padding: 2px 7px; border-radius: 10px; }
+  .svc-name { font-weight: 600; color: #fff; }
+  .svc-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--aws-orange); }
+
+  /* ── Section labels ── */
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--aws-orange); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .section-title { font-size: 19px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .section-desc { font-size: 13.5px; color: #9AA5B4; line-height: 1.6; margin-bottom: 24px; }
+  .divider { border: none; border-top: 1px solid #1E2535; margin: 32px 0; }
+
+  /* ── Architecture wrapper ── */
+  .arch-wrapper {
+    background: #161B27; border: 1px solid #2A3142;
+    border-radius: 12px; padding: 28px; margin-bottom: 28px; overflow-x: auto;
+  }
+  .arch-titlebar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid #2A3142;
+  }
+  .arch-titlebar span { font-size: 13px; font-weight: 600; color: #fff; }
+  .arch-titlebar small { font-size: 11px; color: #6B7890; font-family: 'IBM Plex Mono', monospace; }
+  .pulse { width: 8px; height: 8px; background: var(--free-green); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+  .arch-svg { width: 100%; min-width: 900px; }
+
+  /* ── Lab steps ── */
+  .steps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; margin-bottom: 24px; }
+  .step-card {
+    background: #161B27; border: 1px solid #2A3142; border-radius: 10px;
+    padding: 18px 18px 16px; position: relative;
+    transition: border-color .2s, transform .15s;
+  }
+  .step-card:hover { border-color: var(--aws-orange); transform: translateY(-2px); }
+  .step-number {
+    position: absolute; top: -11px; left: 18px;
+    background: var(--aws-orange); color: #000;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700;
+    padding: 2px 10px; border-radius: 10px;
+  }
+  .free-tag-step {
+    position: absolute; top: -11px; right: 18px;
+    background: rgba(0,168,107,0.25); color: var(--free-green);
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(0,168,107,0.4);
+  }
+  .step-service { display: flex; align-items: center; gap: 10px; margin: 10px 0 10px; }
+  .step-icon { width: 34px; height: 34px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1); }
+  .step-service-name { font-size: 13px; font-weight: 700; color: #fff; }
+  .step-service-tag { font-size: 10.5px; color: #6B7890; font-family: 'IBM Plex Mono', monospace; }
+  .step-task { font-size: 12.5px; font-weight: 600; color: #CBD5E0; margin-bottom: 10px; }
+  .step-instructions { list-style: none; padding: 0; }
+  .step-instructions li {
+    font-size: 12px; color: #7A8699; padding: 4px 0 4px 14px;
+    border-left: 2px solid #2A3142; margin-bottom: 3px; line-height: 1.55; position: relative;
+  }
+  .step-instructions li::before { content: '›'; position: absolute; left: 3px; color: var(--aws-orange); font-weight: 700; }
+  .step-instructions li.free-note { border-left-color: rgba(0,168,107,0.5); }
+  .step-instructions li.free-note::before { content: '✓'; color: var(--free-green); }
+  code { background: #0D1117; border: 1px solid #2A3142; border-radius: 3px; padding: 1px 5px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #63B3ED; }
+
+  /* ── Legend ── */
+  .legend { background: #161B27; border: 1px solid #2A3142; border-radius: 10px; padding: 18px 22px; margin-bottom: 28px; }
+  .legend-title { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6B7890; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .legend-grid { display: flex; flex-wrap: wrap; gap: 14px 26px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #8892A4; }
+  .legend-sq { width: 10px; height: 10px; border-radius: 2px; }
+
+  .footer { text-align: center; padding: 20px; color: #3A4558; font-size: 11px; font-family: 'IBM Plex Mono', monospace; border-top: 1px solid #1E2535; margin-top: 36px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">☁ Koperasi Merah Putih — AWS Blue/Green Lab</div>
+    <div class="header-sub">Enterprise Cloud Architecture · 100% Free Tier Eligible · Singapore Region</div>
+  </div>
+  <div class="free-badge">FREE TIER ✓ $0 COST</div>
+</div>
+
+<div class="container">
+
+  <!-- Notice -->
+  <div class="notice-banner">
+    <div class="notice-icon">🆓</div>
+    <div>
+      <div class="notice-title">Arsitektur High Availability Tanpa Biaya</div>
+      <div class="notice-text">
+        Lab ini mengimplementasikan strategi <strong>Blue/Green Deployment</strong> yang biasanya mahal, namun dioptimalkan untuk <strong>AWS Free Tier</strong>.
+        Setiap interaksi sistem dicatat ke <strong>Amazon DynamoDB</strong> (log terpusat) dan dikelola dengan <strong>Terraform</strong>.
+        <strong>Hapus semua resource</strong> setelah selesai praktikum untuk menghindari tagihan di luar batas waktu/kuota gratis.
+      </div>
+    </div>
+  </div>
+
+  <div class="warn-banner">
+    ⚠ <strong>Perhatian:</strong> Meskipun Elastic Beanstalk gratis, instance EC2 di dalamnya menggunakan kuota 750 jam/bulan. Gunakan instance <code>t2.micro</code> agar tetap gratis.
+  </div>
+
+  <!-- Free Tier Table -->
+  <div class="section-label">Referensi Layanan</div>
+  <div class="section-title">Komponen & Batas Free Tier</div>
+  <div class="section-desc">Berikut adalah daftar layanan AWS yang digunakan dalam proyek Koperasi Merah Putih beserta limitasinya.</div>
+
+  <table class="tier-table">
+    <thead>
+      <tr>
+        <th>Layanan</th>
+        <th>Spesifikasi Lab (Free Tier)</th>
+        <th>Batas Gratis / Bulan</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="svc-name">Elastic Beanstalk</span><br><span class="svc-spec">Node.js t2.micro</span></td>
+        <td>Environment BLUE & GREEN (2 instance t2.micro)</td>
+        <td>750 jam/bulan (Linux)</td>
+        <td><span class="tag-free">FREE</span></td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">Amazon RDS</span><br><span class="svc-spec">MySQL 8 db.t3.micro</span></td>
+        <td>Single-AZ instance, 20 GB gp2 storage</td>
+        <td>750 jam/bulan + 20 GB storage</td>
+        <td><span class="tag-limit">SINGLE-AZ</span></td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">Amazon DynamoDB</span><br><span class="svc-spec">Logging Table</span></td>
+        <td>On-demand logs storage</td>
+        <td>25 GB storage free</td>
+        <td><span class="tag-free">FREE</span></td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">AWS Lambda</span><br><span class="svc-spec">GET & POST Handlers</span></td>
+        <td>Node.js 20.x, 128 MB RAM</td>
+        <td>1 juta request / bulan</td>
+        <td><span class="tag-free">FREE</span></td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">Amazon API Gateway</span><br><span class="svc-spec">REST API (prod)</span></td>
+        <td>Regional Endpoint</td>
+        <td>1 juta API call / bulan</td>
+        <td><span class="tag-free">FREE</span></td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">Amazon EFS</span><br><span class="svc-spec">Shared Storage</span></td>
+        <td>Standard storage mode</td>
+        <td>5 GB storage / bulan</td>
+        <td><span class="tag-free">FREE</span></td>
+      </tr>
+      <tr>
+        <td><span class="svc-name">AWS Amplify</span><br><span class="svc-spec">Frontend Hosting</span></td>
+        <td>Static assets distribution</td>
+        <td>1000 build min/bln · 5 GB data</td>
+        <td><span class="tag-free">FREE</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr class="divider">
+
+  <!-- Architecture Diagram -->
+  <div class="section-label">Topologi Arsitektur</div>
+  <div class="section-title">Koperasi Merah Putih — Blue/Green Topology</div>
+  <div class="section-desc">Diagram ini menunjukkan alur CI/CD otomatis dari GitHub hingga deployment Blue/Green tanpa downtime.</div>
+
+  <div class="arch-wrapper">
+    <div class="arch-titlebar">
+      <div class="pulse"></div>
+      <span>AWS Region: ap-southeast-1 (Singapore) — Blue/Green Architecture</span>
+      <small>| EB · Lambda · RDS · DynamoDB · EFS · Amplify</small>
+    </div>
+
+    <svg class="arch-svg" viewBox="0 0 960 760" xmlns="http://www.w3.org/2000/svg" font-family="'IBM Plex Sans', sans-serif">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M1 1L9 5L1 9" fill="none" stroke="context-stroke" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+        <marker id="arr-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M1 1L9 5L1 9" fill="none" stroke="#3572ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+        <marker id="arr-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M1 1L9 5L1 9" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- ── GitHub Layer ── -->
+      <g transform="translate(40,40)">
+        <circle cx="22" cy="22" r="18" fill="none" stroke="#fff" stroke-width="1.5"/>
+        <path d="M22 10 Q28 10 32 14 L32 30 Q28 34 22 34 Q16 34 12 30 L12 14 Q16 10 22 10" fill="none" stroke="#fff" stroke-width="1"/>
+        <text x="50" y="27" fill="#fff" font-size="10" font-weight="700">GitHub Repository</text>
+      </g>
+      <line x1="160" y1="62" x2="220" y2="62" stroke="#4A90D9" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- ── GitHub Actions ── -->
+      <g transform="translate(225,38)">
+        <rect width="130" height="48" rx="8" fill="#1A2030" stroke="#4A90D9" stroke-width="1.5"/>
+        <path d="M12 14 L28 24 L12 34 Z" fill="#4A90D9"/>
+        <text x="45" y="28" fill="#fff" font-size="10" font-weight="700">GitHub Actions</text>
+      </g>
+
+      <!-- ── Amplify ── -->
+      <g transform="translate(225,110)">
+        <rect width="130" height="48" rx="8" fill="#1A1A0F" stroke="#FF9900" stroke-width="1.5"/>
+        <path d="M10 34 L20 10 L30 34 Z" fill="#FF9900" opacity="0.3"/>
+        <path d="M10 34 L20 10 L30 34 Z" fill="none" stroke="#FF9900" stroke-width="1.5"/>
+        <text x="45" y="28" fill="#fff" font-size="10" font-weight="700">AWS Amplify</text>
+        <rect x="85" y="2" width="40" height="12" rx="5" fill="rgba(0,168,107,0.25)" stroke="rgba(0,168,107,0.5)" stroke-width="0.8"/>
+        <text x="105" y="11" text-anchor="middle" fill="#00A86B" font-size="7" font-weight="700">FREE</text>
+      </g>
+      <line x1="290" y1="86" x2="290" y2="108" stroke="#4A90D9" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- ── S3 Artifacts ── -->
+      <g transform="translate(420,38)">
+        <rect width="140" height="48" rx="8" fill="#1A0808" stroke="#E05242" stroke-width="1.5"/>
+        <ellipse cx="20" cy="14" rx="10" ry="5" fill="none" stroke="#E05242" stroke-width="1.5"/>
+        <line x1="10" y1="14" x2="10" y2="34" stroke="#E05242" stroke-width="1.5"/>
+        <line x1="30" y1="14" x2="30" y2="34" stroke="#E05242" stroke-width="1.5"/>
+        <path d="M10 34 Q20 39 30 34" fill="none" stroke="#E05242" stroke-width="1.5"/>
+        <text x="45" y="22" fill="#fff" font-size="10" font-weight="700">S3 Bucket</text>
+        <text x="45" y="34" fill="#888" font-size="8">Deployment Artifacts</text>
+      </g>
+      <line x1="355" y1="62" x2="415" y2="62" stroke="#4A90D9" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- ── VPC Boundary ── -->
+      <rect x="20" y="200" width="920" height="530" rx="12" fill="none" stroke="#2A3142" stroke-width="2" stroke-dasharray="8 4"/>
+      <text x="35" y="220" fill="#6B7890" font-size="10" font-family="'IBM Plex Mono', monospace">VPC (Koperasi Merah Putih) 10.0.0.0/16</text>
+
+      <!-- Public Subnet -->
+      <rect x="40" y="235" width="280" height="100" rx="8" fill="rgba(255,153,0,0.04)" stroke="#FF9900" stroke-width="0.8" stroke-dasharray="4 3"/>
+      <text x="55" y="252" fill="#A0610A" font-size="9" font-family="'IBM Plex Mono', monospace">Public Subnet</text>
+
+      <g transform="translate(90,265)">
+        <circle cx="22" cy="22" r="18" fill="none" stroke="#7C3AED" stroke-width="1.5"/>
+        <circle cx="22" cy="14" r="3" fill="#7C3AED"/>
+        <circle cx="14" cy="28" r="3" fill="#7C3AED"/>
+        <circle cx="30" cy="28" r="3" fill="#7C3AED"/>
+        <text x="50" y="22" fill="#fff" font-size="10" font-weight="700">App Load Balancer</text>
+        <rect x="135" y="2" width="40" height="12" rx="5" fill="rgba(0,168,107,0.25)" stroke="rgba(0,168,107,0.5)" stroke-width="0.8"/>
+        <text x="155" y="11" text-anchor="middle" fill="#00A86B" font-size="7" font-weight="700">FREE</text>
+      </g>
+      <line x1="290" y1="158" x2="290" y2="232" stroke="#FF9900" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Private Subnet -->
+      <rect x="360" y="235" width="560" height="475" rx="8" fill="rgba(53,114,239,0.03)" stroke="#3572ef" stroke-width="0.8" stroke-dasharray="4 3"/>
+      <text x="375" y="252" fill="#2B6CB0" font-size="9" font-family="'IBM Plex Mono', monospace">Private Subnets</text>
+
+      <!-- Routing Logic -->
+      <path d="M260 290 L380 290 L415 320" fill="none" stroke="#3572ef" stroke-width="2" marker-end="url(#arr-blue)"/>
+      <path d="M260 290 L380 290 L415 420" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="5" marker-end="url(#arr-green)"/>
+
+      <!-- Elastic Beanstalk Environments -->
+      <g transform="translate(430,300)">
+        <rect width="180" height="70" rx="8" fill="#0D1626" stroke="#3572ef" stroke-width="1.5"/>
+        <path d="M10 20 Q20 10 30 20 L30 40 Q20 50 10 40 Z" fill="#3572ef" opacity="0.3"/>
+        <text x="45" y="30" fill="#90CDF4" font-size="10" font-weight="700">EB BLUE ENV</text>
+        <text x="45" y="48" fill="#4A6FA5" font-size="8.5">v1.0.0 (Stable)</text>
+      </g>
+
+      <g transform="translate(430,400)">
+        <rect width="180" height="70" rx="8" fill="#090F14" stroke="#10b981" stroke-width="1.5"/>
+        <path d="M10 20 Q20 10 30 20 L30 40 Q20 50 10 40 Z" fill="#10b981" opacity="0.3"/>
+        <text x="45" y="30" fill="#9AE6B4" font-size="10" font-weight="700">EB GREEN ENV</text>
+        <text x="45" y="48" fill="#276749" font-size="8.5">v1.1.0 (Standby)</text>
+      </g>
+
+      <!-- Shared Storage -->
+      <g transform="translate(430,530)">
+        <rect width="180" height="110" rx="8" fill="#161B27" stroke="#2A3142" stroke-width="1.5" stroke-dasharray="4"/>
+        <text x="15" y="25" fill="#888" font-size="10" font-weight="700">SHARED STORAGE</text>
+        <!-- S3 Mini -->
+        <g transform="translate(15,40) scale(0.6)">
+          <ellipse cx="20" cy="14" rx="10" ry="5" fill="none" stroke="#E05242" stroke-width="2"/>
+          <line x1="10" y1="14" x2="10" y2="34" stroke="#E05242" stroke-width="2"/>
+          <line x1="30" y1="14" x2="30" y2="34" stroke="#E05242" stroke-width="2"/>
+          <path d="M10 34 Q20 39 30 34" fill="none" stroke="#E05242" stroke-width="2"/>
+          <text x="40" y="28" fill="#888" font-size="16">S3 App Bucket</text>
+        </g>
+        <!-- EFS Mini -->
+        <g transform="translate(15,75) scale(0.6)">
+          <rect width="30" height="26" rx="4" fill="none" stroke="#63B3ED" stroke-width="2"/>
+          <path d="M15 5v16M7 13h16" stroke="#63B3ED" stroke-width="2"/>
+          <text x="40" y="20" fill="#888" font-size="16">EFS File System</text>
+        </g>
+      </g>
+      <path d="M425 335 L400 335 L400 585 L430 585" fill="none" stroke="#444d56" stroke-width="1.5"/>
+      <path d="M425 435 L400 435" fill="none" stroke="#444d56" stroke-width="1.5"/>
+
+      <!-- API & Backend Chain -->
+      <line x1="615" y1="335" x2="660" y2="335" stroke="#444d56" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="615" y1="435" x2="640" y2="435" x2="640" y2="335" stroke="#444d56" stroke-width="1.5"/>
+
+      <g transform="translate(670,300)">
+        <rect width="140" height="70" rx="8" fill="#1A1A0F" stroke="#FF9900" stroke-width="1.5"/>
+        <text x="15" y="30" fill="#FBD38D" font-size="10" font-weight="700">API Gateway</text>
+        <text x="15" y="48" fill="#D97706" font-size="8.5">REST API (prod)</text>
+        <path d="M110 25 L125 35 L110 45" fill="none" stroke="#FF9900" stroke-width="2"/>
+      </g>
+
+      <path d="M810 335 L840 335 L840 285 L870 285" fill="none" stroke="#444d56" stroke-width="1.5" marker-end="url(#arr)"/>
+      <path d="M840 335 L840 385 L870 385" fill="none" stroke="#444d56" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Lambda Icons -->
+      <g transform="translate(875,260)">
+        <circle cx="22" cy="22" r="18" fill="none" stroke="#FF9900" stroke-width="1.5"/>
+        <text x="22" y="27" text-anchor="middle" fill="#FF9900" font-size="16">λ</text>
+        <text x="22" y="55" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">POST Fn</text>
+      </g>
+      <g transform="translate(875,360)">
+        <circle cx="22" cy="22" r="18" fill="none" stroke="#FF9900" stroke-width="1.5"/>
+        <text x="22" y="27" text-anchor="middle" fill="#FF9900" font-size="16">λ</text>
+        <text x="22" y="55" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">GET Fn</text>
+      </g>
+
+      <!-- DB & Logs -->
+      <path d="M900 420 L900 480 L820 480" fill="none" stroke="#444d56" stroke-width="1.5" marker-end="url(#arr)"/>
+      <path d="M900 420 L900 580 L820 580" fill="none" stroke="#444d56" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <g transform="translate(630,450)">
+        <rect width="180" height="65" rx="8" fill="#0A0F1A" stroke="#2166B8" stroke-width="1.5"/>
+        <ellipse cx="20" cy="16" rx="10" ry="4" fill="none" stroke="#2166B8" stroke-width="1.5"/>
+        <line x1="10" y1="16" x2="10" y2="40" stroke="#2166B8" stroke-width="1.5"/>
+        <line x1="30" y1="16" x2="30" y2="40" stroke="#2166B8" stroke-width="1.5"/>
+        <path d="M10 40 Q20 45 30 40" fill="none" stroke="#2166B8" stroke-width="1.5"/>
+        <text x="45" y="25" fill="#90CDF4" font-size="10" font-weight="700">RDS MySQL 8.0</text>
+        <text x="45" y="42" fill="#2B6CB0" font-size="8.5">db.t3.micro (20GB)</text>
+      </g>
+
+      <g transform="translate(630,550)">
+        <rect width="180" height="65" rx="8" fill="#090F14" stroke="#1D9E75" stroke-width="1.5"/>
+        <path d="M10 15 L20 10 L30 15 L30 40 L20 45 L10 40 Z" fill="none" stroke="#1D9E75" stroke-width="1.5"/>
+        <text x="45" y="25" fill="#9AE6B4" font-size="10" font-weight="700">DYNAMODB LOGS</text>
+        <text x="45" y="42" fill="#276749" font-size="8.5">Audit & System Logs</text>
+      </g>
+
+    </svg>
+  </div>
+
+  <div class="legend">
+    <div class="legend-title">Keterangan Topologi</div>
+    <div class="legend-grid">
+      <div class="legend-item"><div class="legend-sq" style="background:#00A86B"></div>Free Tier eligible</div>
+      <div class="legend-item"><div class="legend-sq" style="background:#3572ef"></div>Blue Environment (Stable)</div>
+      <div class="legend-item"><div class="legend-sq" style="background:#10b981"></div>Green Environment (New)</div>
+      <div class="legend-item"><div class="legend-sq" style="background:#2A3142; border:1px dashed #6B7890"></div>VPC Boundary</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Lab Steps -->
+  <div class="section-label">Instruksi Praktik</div>
+  <div class="section-title">Lab Steps — Blue/Green Koperasi Merah Putih</div>
+  <div class="section-desc">Ikuti 10 langkah strategis untuk membangun infrastruktur Koperasi Merah Putih secara berurutan.</div>
+
+  <div class="steps-grid">
+
+    <div class="step-card">
+      <div class="step-number">STEP 01</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">🌐</div>
+        <div>
+          <div class="step-service-name">VPC Networking</div>
+          <div class="step-service-tag">VPC · Subnet · IGW</div>
+        </div>
+      </div>
+      <div class="step-task">Bangun pondasi jaringan aman multi-AZ</div>
+      <ul class="step-instructions">
+        <li>Buat VPC: <code>10.0.0.0/16</code> region <code>ap-southeast-1</code></li>
+        <li>Buat <strong>Public Subnet</strong> untuk Load Balancer</li>
+        <li>Buat <strong>Private Subnet</strong> untuk EB dan RDS</li>
+        <li>Konfigurasi Internet Gateway dan NAT Gateway (simulasi via NAT Instance)</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 02</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">🛡️</div>
+        <div>
+          <div class="step-service-name">Security Groups</div>
+          <div class="step-service-tag">IAM · Security Layers</div>
+        </div>
+      </div>
+      <div class="step-task">Pasang sistem keamanan berlapis</div>
+      <ul class="step-instructions">
+        <li>ALB SG: port 80/443 dari internet</li>
+        <li>EB SG: port 80/8080 hanya dari ALB</li>
+        <li>RDS SG: port 3306 hanya dari EB dan Lambda</li>
+        <li>Konfigurasi IAM Role untuk akses S3 dan DynamoDB</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 03</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">🪣</div>
+        <div>
+          <div class="step-service-name">Amazon S3 Storage</div>
+          <div class="step-service-tag">Versioning · Lifecycle</div>
+        </div>
+      </div>
+      <div class="step-task">Siapkan gudang penyimpanan artefak & media</div>
+      <ul class="step-instructions">
+        <li>Bucket 1: <strong>Deployment Artifacts</strong> (zip hasil build)</li>
+        <li>Bucket 2: <strong>Application Media</strong> (user uploads)</li>
+        <li>Aktifkan SSE-S3 encryption dan Versioning</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 04</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">📂</div>
+        <div>
+          <div class="step-service-name">Amazon EFS</div>
+          <div class="step-service-tag">Standard Mode · Multi-AZ</div>
+        </div>
+      </div>
+      <div class="step-task">Setup shared storage antar instance EB</div>
+      <ul class="step-instructions">
+        <li>Buat EFS File System mode General Purpose</li>
+        <li>Configure Mount Targets di setiap private subnet</li>
+        <li>Setup Access Points untuk direktori aplikasi</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 05</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">☁️</div>
+        <div>
+          <div class="step-service-name">Elastic Beanstalk</div>
+          <div class="step-service-tag">t2.micro · Node.js 20</div>
+        </div>
+      </div>
+      <div class="step-task">Deploy Environment BLUE & GREEN</div>
+      <ul class="step-instructions">
+        <li>Deploy Environment BLUE (versi stabil)</li>
+        <li>Deploy Environment GREEN (versi baru)</li>
+        <li>Konfigurasi ALB Weighted Listener Rules</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 06</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">🚪</div>
+        <div>
+          <div class="step-service-name">API Gateway</div>
+          <div class="step-service-tag">REST API · Regional</div>
+        </div>
+      </div>
+      <div class="step-task">Setup pintu masuk request API</div>
+      <ul class="step-instructions">
+        <li>Buat REST API dengan Regional endpoint</li>
+        <li>Configure Stage 'prod' dan Access Logging</li>
+        <li>Setup Usage Plan dan Throttling (1000 RPS)</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 07</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">λ</div>
+        <div>
+          <div class="step-service-name">AWS Lambda</div>
+          <div class="step-service-tag">Node.js · VPC Access</div>
+        </div>
+      </div>
+      <div class="step-task">Implementasi eksekutor serverless</div>
+      <ul class="step-instructions">
+        <li>Lambda POST Handler: Write to RDS & DynamoDB</li>
+        <li>Lambda GET Handler: Read from RDS</li>
+        <li>Configure VPC Subnets dan SG untuk Lambda</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 08</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">🗄️</div>
+        <div>
+          <div class="step-service-name">Amazon RDS</div>
+          <div class="step-service-tag">MySQL 8 · db.t3.micro</div>
+        </div>
+      </div>
+      <div class="step-task">Database relasional utama</div>
+      <ul class="step-instructions">
+        <li>Launch RDS db.t3.micro (20 GB storage)</li>
+        <li>Simpan kredensial di Secrets Manager</li>
+        <li>Aktifkan Automated Backups</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 09</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">📊</div>
+        <div>
+          <div class="step-service-name">Amazon DynamoDB</div>
+          <div class="step-service-tag">Logging · TTL</div>
+        </div>
+      </div>
+      <div class="step-task">Implementasi buku log terpusat</div>
+      <ul class="step-instructions">
+        <li>Buat tabel Log dengan Partition Key: <code>LogID</code></li>
+        <li>Configure TTL (7 hari) untuk auto-deletion</li>
+        <li>Setup GSI untuk pencarian berdasarkan <code>LogLevel</code></li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">STEP 10</div>
+      <div class="free-tag-step">FREE ✓</div>
+      <div class="step-service">
+        <div class="step-icon">🚀</div>
+        <div>
+          <div class="step-service-name">CI/CD Pipeline</div>
+          <div class="step-service-tag">Actions · Amplify</div>
+        </div>
+      </div>
+      <div class="step-task">Otomatisasi deployment & frontend</div>
+      <ul class="step-instructions">
+        <li>Setup GitHub Actions workflow (test & build)</li>
+        <li>Configure Amplify untuk hosting frontend</li>
+        <li>Test <strong>Rollback</strong> via Terraform variable change</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    &copy; 2026 Koperasi Merah Putih &middot; Enterprise Cloud Lab &middot; Powered by AWS Free Tier
+  </div>
+</div>
+
+</body>
+</html>
