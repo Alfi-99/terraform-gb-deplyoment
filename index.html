@@ -619,10 +619,115 @@
 
   </div>
 
+  <hr class="divider">
+
+  <!-- Testing Panel -->
+  <div class="section-label">Live Testing Panel</div>
+  <div class="section-title">Test Backend Integration</div>
+  <div class="section-desc">Gunakan panel ini untuk mengetes koneksi dari Frontend -> API Gateway -> Lambda -> RDS & DynamoDB.</div>
+
+  <div class="arch-wrapper">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+      <!-- Post Test -->
+      <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 8px; border: 1px solid #2A3142;">
+        <h4 style="margin-bottom: 15px; color: var(--aws-orange);">Test Lambda POST (Simpan Data)</h4>
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; font-size: 11px; color: #8892A4; margin-bottom: 5px;">Nama Anggota</label>
+          <input type="text" id="input-name" placeholder="Contoh: Budi Santoso" style="width: 100%; background: #0D1117; border: 1px solid #2A3142; color: #fff; padding: 8px; border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; font-size: 11px; color: #8892A4; margin-bottom: 5px;">Jumlah Simpanan (Rp)</label>
+          <input type="number" id="input-amount" placeholder="500000" style="width: 100%; background: #0D1117; border: 1px solid #2A3142; color: #fff; padding: 8px; border-radius: 4px;">
+        </div>
+        <button onclick="testPost()" style="background: var(--aws-orange); color: #000; border: none; padding: 10px 20px; border-radius: 4px; font-weight: 700; cursor: pointer; width: 100%;">Kirim ke Lambda POST</button>
+        <div id="post-status" style="margin-top: 15px; font-size: 12px; font-family: monospace;"></div>
+      </div>
+
+      <!-- Get Test -->
+      <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 8px; border: 1px solid #2A3142;">
+        <h4 style="margin-bottom: 15px; color: var(--aws-orange);">Test Lambda GET (Ambil Data)</h4>
+        <button onclick="testGet()" style="background: #1A2030; color: #fff; border: 1px solid #4A90D9; padding: 10px 20px; border-radius: 4px; font-weight: 700; cursor: pointer; width: 100%;">Ambil Data dari Lambda GET</button>
+        <div id="get-status" style="margin-top: 15px; font-size: 12px; font-family: monospace; max-height: 150px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="footer">
     &copy; 2026 Koperasi Merah Putih &middot; Enterprise Cloud Lab &middot; Powered by AWS Free Tier
   </div>
 </div>
+
+<script>
+  // Konfigurasi API (Akan diisi otomatis oleh Amplify environment variables jika di-setup, 
+  // atau kita bisa hardcode untuk testing sekarang)
+  const API_URL = "https://vm92wzodui.execute-api.ap-southeast-1.amazonaws.com/prod";
+  const ALB_URL = "http://koperasi-merah-putih-prod-alb-298932765.ap-southeast-1.elb.amazonaws.com";
+
+  // Fungsi untuk mengecek environment aktif (Blue/Green)
+  async function checkActiveEnv() {
+    try {
+      const response = await fetch(`${ALB_URL}/health`);
+      const data = await response.json();
+      const badge = document.querySelector('.free-badge');
+      if (data.environment === 'green') {
+        badge.style.background = 'rgba(16, 185, 129, 0.2)';
+        badge.style.borderColor = '#10b981';
+        badge.style.color = '#10b981';
+        badge.innerText = "ACTIVE ENV: GREEN";
+      } else {
+        badge.style.background = 'rgba(53, 114, 239, 0.2)';
+        badge.style.borderColor = '#3572ef';
+        badge.style.color = '#3572ef';
+        badge.innerText = "ACTIVE ENV: BLUE";
+      }
+    } catch (e) {
+      console.log("Gagal mengambil status ALB, mungkin karena CORS atau belum di-deploy.");
+    }
+  }
+
+  // Jalankan cek environment saat load
+  checkActiveEnv();
+
+  // Test Lambda POST
+  async function testPost() {
+    const statusDiv = document.getElementById('post-status');
+    const name = document.getElementById('input-name').value;
+    const amount = document.getElementById('input-amount').value;
+
+    if (!name || !amount) {
+      statusDiv.innerHTML = '<span style="color: #F5A623;">⚠ Harap isi nama dan jumlah!</span>';
+      return;
+    }
+
+    statusDiv.innerHTML = '<span style="color: #9AA5B4;">⏳ Mengirim data...</span>';
+
+    try {
+      const response = await fetch(`${API_URL}/data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, amount: parseInt(amount) })
+      });
+      const result = await response.json();
+      statusDiv.innerHTML = `<span style="color: #00A86B;">✅ Sukses! ID: ${result.id || 'N/A'}</span><br><pre style="font-size: 10px; margin-top:5px;">${JSON.stringify(result, null, 2)}</pre>`;
+    } catch (e) {
+      statusDiv.innerHTML = `<span style="color: #E05242;">❌ Error: ${e.message}</span>`;
+    }
+  }
+
+  // Test Lambda GET
+  async function testGet() {
+    const statusDiv = document.getElementById('get-status');
+    statusDiv.innerHTML = '<span style="color: #9AA5B4;">⏳ Mengambil data...</span>';
+
+    try {
+      const response = await fetch(`${API_URL}/data`);
+      const result = await response.json();
+      statusDiv.innerHTML = `<span style="color: #00A86B;">✅ Berhasil mengambil ${result.length || 0} data:</span><br><pre style="font-size: 10px; margin-top:5px;">${JSON.stringify(result, null, 2)}</pre>`;
+    } catch (e) {
+      statusDiv.innerHTML = `<span style="color: #E05242;">❌ Error: ${e.message}</span>`;
+    }
+  }
+</script>
 
 </body>
 </html>
