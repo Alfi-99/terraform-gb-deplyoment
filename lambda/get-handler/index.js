@@ -181,24 +181,39 @@ async function handleGetItemById(itemId, requestId) {
 }
 
 /**
- * Handler: Health check
+ * Handler: Health check & Auto-Initialization
  */
 async function handleHealthCheck(requestId) {
-  // Test koneksi database
   let dbStatus = 'healthy';
   let dbError = null;
+  let initStatus = 'skipped';
 
   try {
+    // 1. Test koneksi database
     await query('SELECT 1');
+    
+    // 2. Auto-initialize table if not exists (Safety mechanism)
+    await query(`
+      CREATE TABLE IF NOT EXISTS items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    initStatus = 'success';
   } catch (err) {
     dbStatus = 'unhealthy';
     dbError = err.message;
+    initStatus = 'failed';
   }
 
   const healthData = {
     status: dbStatus === 'healthy' ? 'healthy' : 'degraded',
     service: 'lambda-get',
     timestamp: new Date().toISOString(),
+    database_init: initStatus,
     checks: {
       database: {
         status: dbStatus,
