@@ -97,6 +97,11 @@ resource "aws_iam_role_policy_attachment" "eb_worker_tier" {
   policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier"
 }
 
+resource "aws_iam_role_policy_attachment" "eb_ssm" {
+  role       = aws_iam_role.eb_instance_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 # Instance Profile untuk EC2 (Elastic Beanstalk menggunakan ini)
 resource "aws_iam_instance_profile" "eb_instance_profile" {
   name = "${local.name_prefix}-eb-instance-profile"
@@ -121,6 +126,11 @@ resource "aws_iam_role" "eb_service_role" {
       }
     ]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "eb_service_managed" {
+  role       = aws_iam_role.eb_service_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkService"
 }
 
 resource "aws_iam_role_policy_attachment" "eb_enhanced_health" {
