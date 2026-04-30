@@ -261,12 +261,6 @@ resource "aws_elastic_beanstalk_environment" "blue" {
     Color = "blue"
   }
 
-  timeouts {
-    create = "40m"
-    update = "40m"
-    delete = "40m"
-  }
-
   depends_on = [
     aws_iam_role_policy_attachment.eb_web_tier,
     aws_iam_role_policy_attachment.eb_worker_tier,
@@ -329,12 +323,6 @@ resource "aws_elastic_beanstalk_environment" "green" {
   tags = {
     Name  = "${local.name_prefix}-green-env"
     Color = "green"
-  }
-
-  timeouts {
-    create = "40m"
-    update = "40m"
-    delete = "40m"
   }
 
   depends_on = [
