@@ -5,8 +5,15 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
+# Data Source: Mencari platform version terbaru untuk Node.js 20
+# ---------------------------------------------------------------------------
+data "aws_elastic_beanstalk_solution_stack" "nodejs" {
+  most_recent = true
+  name_regex  = "^64bit Amazon Linux 2023 v.* running Node.js 20$"
+}
+
+# ---------------------------------------------------------------------------
 # Elastic Beanstalk Application
-# Satu aplikasi yang memiliki dua environment (Blue dan Green)
 # ---------------------------------------------------------------------------
 resource "aws_elastic_beanstalk_application" "main" {
   name        = "${local.name_prefix}-app"
@@ -203,7 +210,7 @@ locals {
 resource "aws_elastic_beanstalk_environment" "blue" {
   name                = "${local.name_prefix}-blue"
   application         = aws_elastic_beanstalk_application.main.name
-  solution_stack_name = var.eb_solution_stack
+  solution_stack_name = data.aws_elastic_beanstalk_solution_stack.nodejs.name
   version_label       = aws_elastic_beanstalk_application_version.blue.name
 
   # Security group untuk EC2
@@ -266,7 +273,7 @@ resource "aws_elastic_beanstalk_environment" "blue" {
 resource "aws_elastic_beanstalk_environment" "green" {
   name                = "${local.name_prefix}-green"
   application         = aws_elastic_beanstalk_application.main.name
-  solution_stack_name = var.eb_solution_stack
+  solution_stack_name = data.aws_elastic_beanstalk_solution_stack.nodejs.name
   version_label       = aws_elastic_beanstalk_application_version.green.name
 
   # Security group untuk EC2
