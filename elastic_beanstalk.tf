@@ -230,11 +230,11 @@ resource "aws_elastic_beanstalk_environment" "blue" {
   setting {
     namespace = "aws:elbv2:listener:default"
     name      = "DefaultProcess"
-    value     = "blue-default"
+    value     = "bluedefault"
   }
 
   setting {
-    namespace = "aws:elasticbeanstalk:environment:process:blue-default"
+    namespace = "aws:elasticbeanstalk:environment:process:bluedefault"
     name      = "Port"
     value     = "80"
   }
@@ -293,11 +293,11 @@ resource "aws_elastic_beanstalk_environment" "green" {
   setting {
     namespace = "aws:elbv2:listener:default"
     name      = "DefaultProcess"
-    value     = "green-default"
+    value     = "greendefault"
   }
 
   setting {
-    namespace = "aws:elasticbeanstalk:environment:process:green-default"
+    namespace = "aws:elasticbeanstalk:environment:process:greendefault"
     name      = "Port"
     value     = "80"
   }
