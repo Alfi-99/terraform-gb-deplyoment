@@ -254,6 +254,8 @@ jobs:
       - name: Ambil ARN Load Balancer dan Target Groups
         id: get-resources
         run: |
+          # Ambil ARN ALB
+          ALB_ARN=$(aws elbv2 describe-load-balancers \
             --names "koperasi-merah-putih-prod-alb" \
             --query 'LoadBalancers[0].LoadBalancerArn' \
             --output text)
