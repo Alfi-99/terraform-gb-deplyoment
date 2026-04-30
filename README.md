@@ -497,6 +497,10 @@ curl "${API_URL}/health"
 # Test ALB
 ALB_URL=$(terraform output -raw alb_dns_name)
 curl "http://${ALB_URL}/health"
+
+# Test Langsung ke EB (Jika ALB bermasalah)
+EB_URL=$(terraform output -raw eb_blue_env_url)
+curl "http://${EB_URL}/health"
 ```
 
 ---
@@ -506,11 +510,12 @@ curl "http://${ALB_URL}/health"
 ### Deploy versi baru ke Green (standby)
 
 ```bash
-# 1. Update aplikasi di branch main → GitHub Actions otomatis deploy ke GREEN
+# 1. Update aplikasi di folder `app-bundle/`
+# 2. Push ke branch main → GitHub Actions otomatis deploy ke GREEN
 
-# 2. Cek status environment GREEN
+# 3. Cek status environment GREEN
 aws elasticbeanstalk describe-environments \
-  --environment-names "koperasi-merah-putih-prod-green" \
+  --environment-names "koperasi-green" \
   --query 'Environments[0].{Status:Status,Health:Health,HealthStatus:HealthStatus}'
 ```
 
