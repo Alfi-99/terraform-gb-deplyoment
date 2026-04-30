@@ -702,7 +702,7 @@
     statusDiv.innerHTML = '<span style="color: #9AA5B4;">⏳ Mengirim data...</span>';
 
     try {
-      const response = await fetch(`${API_URL}/data`, {
+      const response = await fetch(`${API_URL}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, amount: parseInt(amount) })
@@ -720,7 +720,7 @@
     statusDiv.innerHTML = '<span style="color: #9AA5B4;">⏳ Mengambil data...</span>';
 
     try {
-      const response = await fetch(`${API_URL}/data`);
+      const response = await fetch(`${API_URL}/items`);
       const result = await response.json();
       statusDiv.innerHTML = `<span style="color: #00A86B;">✅ Berhasil mengambil ${result.length || 0} data:</span><br><pre style="font-size: 10px; margin-top:5px;">${JSON.stringify(result, null, 2)}</pre>`;
     } catch (e) {
