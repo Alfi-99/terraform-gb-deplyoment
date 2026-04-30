@@ -65,7 +65,7 @@ variable "eb_solution_stack" {
 variable "eb_instance_type" {
   description = "EC2 instance type untuk Elastic Beanstalk (free tier: t2.micro)"
   type        = string
-  default     = "t2.micro"
+  default     = "t3.micro"
 }
 
 variable "eb_min_instances" {
