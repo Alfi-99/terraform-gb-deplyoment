@@ -444,8 +444,8 @@ BUCKET=$(terraform output -raw s3_deployment_bucket)
 echo "Bucket: $BUCKET"
 
 # Upload placeholder untuk Blue dan Green
-aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v1.0.0-blue/app.zip"
-aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v1.0.1-green/app.zip"
+aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v100blue/app.zip"
+aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v101green/app.zip"
 ```
 </details>
 
@@ -461,8 +461,8 @@ $BUCKET = terraform output -raw s3_deployment_bucket
 echo "Bucket: $BUCKET"
 
 # Upload placeholder untuk Blue dan Green
-aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v1.0.0-blue/app.zip"
-aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v1.0.1-green/app.zip"
+aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v100blue/app.zip"
+aws s3 cp app-placeholder.zip "s3://${BUCKET}/deployments/v101green/app.zip"
 ```
 </details>
 

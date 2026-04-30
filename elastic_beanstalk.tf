@@ -31,19 +31,19 @@ resource "aws_elastic_beanstalk_application" "main" {
 # Dibuat dari ZIP file di S3
 # ---------------------------------------------------------------------------
 resource "aws_elastic_beanstalk_application_version" "blue" {
-  name        = var.blue_version_label
+  name        = "v100blue" # Disederhanakan (hanya huruf & angka)
   application = aws_elastic_beanstalk_application.main.name
   description = "Blue environment version"
   bucket      = aws_s3_bucket.deployment.id
-  key         = "deployments/${var.blue_version_label}/app.zip"
+  key         = "deployments/v100blue/app.zip"
 }
 
 resource "aws_elastic_beanstalk_application_version" "green" {
-  name        = var.green_version_label
+  name        = "v101green" # Disederhanakan
   application = aws_elastic_beanstalk_application.main.name
   description = "Green environment version"
   bucket      = aws_s3_bucket.deployment.id
-  key         = "deployments/${var.green_version_label}/app.zip"
+  key         = "deployments/v101green/app.zip"
 }
 
 # ---------------------------------------------------------------------------
@@ -208,7 +208,7 @@ locals {
 # Environment BLUE
 # ---------------------------------------------------------------------------
 resource "aws_elastic_beanstalk_environment" "blue" {
-  name                = "${local.name_prefix}-blue"
+  name                = "koperasi-blue" # Nama lebih pendek dan aman
   application         = aws_elastic_beanstalk_application.main.name
   solution_stack_name = data.aws_elastic_beanstalk_solution_stack.nodejs.name
   version_label       = aws_elastic_beanstalk_application_version.blue.name
@@ -271,7 +271,7 @@ resource "aws_elastic_beanstalk_environment" "blue" {
 # Environment GREEN
 # ---------------------------------------------------------------------------
 resource "aws_elastic_beanstalk_environment" "green" {
-  name                = "${local.name_prefix}-green"
+  name                = "koperasi-green" # Nama lebih pendek dan aman
   application         = aws_elastic_beanstalk_application.main.name
   solution_stack_name = data.aws_elastic_beanstalk_solution_stack.nodejs.name
   version_label       = aws_elastic_beanstalk_application_version.green.name
