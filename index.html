@@ -705,7 +705,10 @@
       const response = await fetch(`${API_URL}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, amount: parseInt(amount) })
+        body: JSON.stringify({ 
+          name: name, 
+          description: `Simpanan sebesar Rp${amount}` 
+        })
       });
       const result = await response.json();
       statusDiv.innerHTML = `<span style="color: #00A86B;">✅ Sukses! ID: ${result.id || 'N/A'}</span><br><pre style="font-size: 10px; margin-top:5px;">${JSON.stringify(result, null, 2)}</pre>`;
